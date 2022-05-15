@@ -22,15 +22,25 @@ public:
         cmdmsg.id = _CAN_MCM;
         cmdmsg.header.stamp = msg->header.stamp;
         parser_.set_tbe("MTC", "N", tq_cmd);
-        parser_.encode(_CAN_MCM, cmdmsg.data);
+        if (_state == 1) {
+          parser_.encode(_CAN_MCM, cmdmsg.data);
+        }
+        else {
+          cmdmsg.data = 0;
+        }
         mcu_pub_.publish(cmdmsg);
         // std::cout << "torque command: " << tq_cmd << std::endl;
       }
     }
   }
 
+  void State(const std_msgs::Bool &msg){
+    state_ = msg->data;
+  }
+
 private:
   double tq_cmd = 0;
+  bool state_ = 0;
   Parser parser_;
   std::shared_ptr<ros::NodeHandle> nh_;
   ros::Publisher mcu_pub_;
@@ -44,6 +54,7 @@ Torque_Controller::Torque_Controller(std::shared_ptr<ros::NodeHandle> &nh)
   mcu_pub_ = nh_->advertise<can_msgs::Frame>("sent_messages", 5);
   can_sub_ =
       nh_->subscribe("received_messages", 5, &Torque_Controller::onCan, this);
+  state_sub_ = nh_->subscribe("node_state", 5, &Torque_Controller::State, this);
 }
 
 typedef Torque_Controller TC;
