@@ -3,6 +3,7 @@
 
 #include <NTURT_CAN_Parser.hpp>
 #include <can_msgs/Frame.h>
+#include "std_msgs/Bool.h"
 #include <cp_can_id.hpp>
 #include <memory>
 #include <ros/ros.h>
@@ -21,12 +22,13 @@ public:
         can_msgs::Frame cmdmsg;
         cmdmsg.id = _CAN_MCM;
         cmdmsg.header.stamp = msg->header.stamp;
-        parser_.set_tbe("MTC", "N", tq_cmd);
-        if (_state == 1) {
+        if (state_ == 1) {
+          parser_.set_tbe("MTC", "N", tq_cmd);
           parser_.encode(_CAN_MCM, cmdmsg.data);
         }
         else {
-          cmdmsg.data = 0;
+          parser_.set_tbe("MTC", "N", 0);
+          parser_.encode(_CAN_MCM, cmdmsg.data);
         }
         mcu_pub_.publish(cmdmsg);
         // std::cout << "torque command: " << tq_cmd << std::endl;
@@ -34,7 +36,8 @@ public:
     }
   }
 
-  void State(const std_msgs::Bool &msg){
+  void State(const std_msgs::Bool::ConstPtr &msg)
+  {
     state_ = msg->data;
   }
 
@@ -45,6 +48,7 @@ private:
   std::shared_ptr<ros::NodeHandle> nh_;
   ros::Publisher mcu_pub_;
   ros::Subscriber can_sub_;
+  ros::Subscriber state_sub_;
 };
 
 Torque_Controller::Torque_Controller(std::shared_ptr<ros::NodeHandle> &nh)
