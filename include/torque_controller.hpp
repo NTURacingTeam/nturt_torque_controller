@@ -10,6 +10,7 @@
 
 // ROS message include
 #include "can_msgs/Frame.h"
+#include "std_msgs/Bool.h"
 
 // NTURT include
 // CAN parser
@@ -21,12 +22,6 @@ class TorqueController {
     public:
         TorqueController(std::shared_ptr<ros::NodeHandle> &_nh);
 
-        /// \brief Callback function when receiving message form topic "sent_messages"
-        void onCan(const can_msgs::Frame::ConstPtr &_msg);
-
-        /// \brief Callback function to shutdown the node
-        void shutdown();
-
         /// \brief Function for testing purposes
         void test();
 
@@ -34,6 +29,12 @@ class TorqueController {
         void test1();
 
     private:
+        /// \brief Callback function when receiving message form topic "sent_messages"
+        void onCan(const can_msgs::Frame::ConstPtr &_msg);
+
+        /// \brief Callback function when receiving message from topic "node_state"
+        void onState(const std_msgs::Bool::ConstPtr &_msg);
+
         /// \brief Pointer to ros node handle
         std::shared_ptr<ros::NodeHandle> nh_;
         
@@ -43,11 +44,17 @@ class TorqueController {
         /// \brief Subscriber to can message
         ros::Subscriber can_sub_;
 
+        /// \brief Subscriber to node state
+        ros::Subscriber state_sub_;
+
         /// \brief Can parser
         Parser parser_;
 
         /// \brief Torque command
         double torque_cmd_;
+
+        /// \brief Internal state to check if initialize is done
+        bool state_ = false;
 };
 
 #endif // TORQUE_CONTROLLER_HPP
