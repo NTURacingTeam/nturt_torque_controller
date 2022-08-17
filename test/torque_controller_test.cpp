@@ -10,14 +10,13 @@ int main(int argc, char **argv) {
     // Initialize torque controller
     TorqueController torque_controller(nh);
     
-    // Frequancy 1 Hz
-    ros::Rate loop_rate(1);
+    // Frequancy 10 Hz
+    ros::Rate loop_rate(10);
 
     // Main loop
     while (ros::ok()) {
         // torque_controller.test1();
         torque_controller.test();
-        torque_controller.test1();
         ros::spinOnce();
         loop_rate.sleep();
     }
