@@ -3,9 +3,11 @@
 
 #include <NTURT_CAN_Parser.hpp>
 #include <can_msgs/Frame.h>
-#include "std_msgs/Bool.h"
 #include <cp_can_id.hpp>
 #include <memory>
+#include <signal.h>
+
+// ROS include
 #include <ros/ros.h>
 
 class Torque_Controller {
@@ -58,9 +60,6 @@ Torque_Controller::Torque_Controller(std::shared_ptr<ros::NodeHandle> &nh)
   mcu_pub_ = nh_->advertise<can_msgs::Frame>("sent_messages", 5);
   can_sub_ =
       nh_->subscribe("received_messages", 5, &Torque_Controller::onCan, this);
-  state_sub_ = nh_->subscribe("node_state", 5, &Torque_Controller::State, this);
 }
 
 typedef Torque_Controller TC;
-
-#endif
