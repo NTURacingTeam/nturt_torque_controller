@@ -1,65 +1,61 @@
 #ifndef TORQUE_CONTROLLER_HPP
 #define TORQUE_CONTROLLER_HPP
 
+// NTURT include
+// CAN parser
 #include <NTURT_CAN_Parser.hpp>
-#include <can_msgs/Frame.h>
 #include <cp_can_id.hpp>
+
+// ROS message include
+#include "can_msgs/Frame.h"
+#include "std_msgs/Bool.h"
+
+// STD include
 #include <memory>
 #include <signal.h>
 
 // ROS include
 #include <ros/ros.h>
 
-class Torque_Controller {
+/// \brief Class for sending can signal to inverter
+class TorqueController
+{
 public:
-  Torque_Controller(std::shared_ptr<ros::NodeHandle> &nh);
+  TorqueController(std::shared_ptr<ros::NodeHandle> &_nh);
 
-  void onCan(const can_msgs::Frame::ConstPtr &msg) {
-    int id = msg->id;
-    // std::cout << "id: " << id << std::endl;
-    if (id == _CAN_FB2) {
-      if (parser_.decode(_CAN_FB2, msg->data) == OK) {
-        tq_cmd = parser_.get_afd("THR", "A");
-        // send can message to the controller
-        can_msgs::Frame cmdmsg;
-        cmdmsg.id = _CAN_MCM;
-        cmdmsg.header.stamp = msg->header.stamp;
-        if (state_ == 1) {
-          parser_.set_tbe("MTC", "N", tq_cmd);
-          parser_.encode(_CAN_MCM, cmdmsg.data);
-        }
-        else {
-          parser_.set_tbe("MTC", "N", 0);
-          parser_.encode(_CAN_MCM, cmdmsg.data);
-        }
-        mcu_pub_.publish(cmdmsg);
-        // std::cout << "torque command: " << tq_cmd << std::endl;
-      }
-    }
-  }
+  /// \brief Function for testing purposes
+  void test();
 
-  void State(const std_msgs::Bool::ConstPtr &msg)
-  {
-    state_ = msg->data;
-  }
+  /// \brief Function for testing purposes
+  void test1();
 
 private:
-  double tq_cmd = 0;
-  bool state_ = 0;
-  Parser parser_;
+  /// \brief Callback function when receiving message form topic "sent_messages"
+  void onCan(const can_msgs::Frame::ConstPtr &_msg);
+
+  /// \brief Callback function when receiving message from topic "node_state"
+  void onState(const std_msgs::Bool::ConstPtr &_msg);
+
+  /// \brief Pointer to ros node handle
   std::shared_ptr<ros::NodeHandle> nh_;
+
+  /// \brief Publisher to mcu command
   ros::Publisher mcu_pub_;
+
+  /// \brief Subscriber to can message
   ros::Subscriber can_sub_;
+
+  /// \brief Subscriber to node state
   ros::Subscriber state_sub_;
+
+  /// \brief Can parser
+  Parser parser_;
+
+  /// \brief Torque command
+  double torque_cmd_;
+
+  /// \brief Internal state to check if initialize is done
+  bool state_ = false;
 };
 
-Torque_Controller::Torque_Controller(std::shared_ptr<ros::NodeHandle> &nh)
-    : nh_(nh) {
-  std::cout << "node init" << std::endl;
-  parser_.init_parser();
-  mcu_pub_ = nh_->advertise<can_msgs::Frame>("sent_messages", 5);
-  can_sub_ =
-      nh_->subscribe("received_messages", 5, &Torque_Controller::onCan, this);
-}
-
-typedef Torque_Controller TC;
+#endif // TORQUE_CONTROLLER_HPP
