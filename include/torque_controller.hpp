@@ -1,27 +1,29 @@
 #ifndef TORQUE_CONTROLLER_HPP
 #define TORQUE_CONTROLLER_HPP
 
-// NTURT include
-// CAN parser
-#include <NTURT_CAN_Parser.hpp>
-#include <cp_can_id.hpp>
+// NTURT can id
+#include "cp_can_id.hpp"
+#include "NTURT_CAN_Parser.hpp"
+
+// ROS include
+#include <ros/ros.h>
 
 // ROS message include
 #include "can_msgs/Frame.h"
 #include "std_msgs/Bool.h"
 
 // STD include
+#include <bitset>
 #include <memory>
-#include <signal.h>
-
-// ROS include
-#include <ros/ros.h>
 
 /// \brief Class for sending can signal to inverter
 class TorqueController {
     public:
         TorqueController(std::shared_ptr<ros::NodeHandle> &_nh);
 
+        /// \brief Update function for publishing can data to inverter
+        void update();
+        
         /// \brief Function for testing purposes
         void test();
 
@@ -31,6 +33,19 @@ class TorqueController {
 
         /// \brief Callback function when receiving message from topic "node_state"
         void onState(const std_msgs::Bool::ConstPtr &_msg);
+
+        /// \brief Function for checking the plausibility (accelerator and brake) of padels
+        /// \return Accelerator pedal travel (0 ~ 1) after checking the plausibility of padels
+        double plausibility_check(double _time_period);
+        
+        /// \brief Function for handling soft start of the motor
+        /// \return Torque command (0 ~ torque_max_)
+        double soft_start(double _accelerator_travel, double _time_period);
+
+        /// \brief Function for handling activation of inverter
+        void activate_inverter();
+
+        /// \brief Function for handling 
 
         /// \brief Pointer to ros node handle
         std::shared_ptr<ros::NodeHandle> nh_;
@@ -44,44 +59,84 @@ class TorqueController {
         /// \brief Subscriber to node state
         ros::Subscriber state_sub_;
 
+        /// \brief Can message to send to inverter
+        can_msgs::Frame can_msg_;
+
         /// \brief Can parser
         Parser parser_;
 
-        /// \brief Torque command
-        double torque_cmd_;
+        // data input
+        /// \brief Signal to activate this node controlled by topic "node_state"
+        bool is_activated_ = false;
 
-        /// \brief Motor spped
+        /// \brief Accelerator pedal level a
+        double accelerator_level_a_ = 0;
+
+        /// \brief Accelerator pedal level b
+        double accelerator_level_b_ = 0;
+
+        /// \brief Accelerator pedal trigger
+        bool accelerator_triger_ = false;
+
+        /// \brief Brake pedal level
+        double brake_level_ = 0;
+
+        /// \brief Brake pedal trigger
+        bool brake_trigger_ = false;
+
+        /// \brief Motor spped [rpm]
         double motor_speed_ = 0;
 
-        /// \brief Threshold for motor spped to trigger soft start [rpm]
-        double motor_speed_threshold_ = 60;
+        // internal control parameters
+        /// \brief Last timestemp when "update" is called [s]
+        double timestemp_last_;
+
+        // accelerator pedal plausibility check (appc)
+        /// \brief Time duration when triggering accelerator pedal plausibility check
+        double appc_duration_ = 0;
+
+        /// \brief Accelerator pedal plausibility check error, when set to true, should disable inverter
+        bool appc_error_ = false;
+
+        // brake pedal plausibility cehck (bppc)
+        /// \brief Brake pedal plausibility check error, when set to true, should disable inverter
+        bool bppc_error_ = false;
+
+        // soft start
+        /// \brief Last torque command when "update" is called [N * m]
+        double torque_command_last_ = 0;
+
+        // parameters of the node
+        // accelerator pedal plausibility check (appc)
+        /// \brief Difference threshold of the accelerator pedal travel, when higher, trigger accelerator pedal plausibility check
+        double appc_travel_threshold_ = 0.1;
+
+        /// \brief Time threshold before triggering accelerator pedal plausibility check [s]
+        double appc_duration_threshold_ = 0.1;
+
+        /// \brief Error duraion discount factor when accelerator pedal signals are pausible
+        double appc_duration_discount_ = 0.1;
+
+        // brake pedal plausibility cehck (bppc)
+        /// \brief Accelerator pedal travel threshold when higher, trigger brake pedal plausibility lock
+        double bppc_trigger_threshold_ = 0.15;
+
+        /// \brief Accelerator pedal travel threshold when lower, release brake pedal plausibility lock
+        double bppc_release_threshold_ = 0.05;
+
+        // soft start when motor speed is low
+        /// \brief Threshold for motor spped when lower, trigger soft start [rpm]
+        double soft_start_threshold_ = 60;
 
         /// \brief Torque slope for soft start [N * m / s]
-        double torque_slope_ = 13;
+        double soft_start_torque_slope_ = 13;
 
+        // others
         /// \brief Maximum torque output [N * m]
         double torque_max_ = 130;
 
-        /// \brief Last torque command for soft start
-        double torque_cmd_last_ = 0;
-
-        /// \brief Last timestemp for soft start
-        double timestemp_last_;
-
-        /// \brief Error time duration for checking pedal pausibility
-        double error_duration_ = 0;
-
-        /// \brief Time threshold before trigger error for pedal pausibility [s]
-        double error_duration_threshold_ = 1;
-
-        /// \brief Error duraion discount factor when pedal is pausible
-        double error_duration_discount_ = 0.1;
-
-        /// \brief Control flag to determine if pedal is not pausible
-        bool error_state_ = false;
-
-        /// \brief Internal state to check if initialize is done
-        bool state_ = false;
+        /// \brief Scale factor when converting pedal level to pedal travel
+        double pedal_level_to_travel_ = 1 / (254 - 1);
 };
 
 #endif // TORQUE_CONTROLLER_HPP

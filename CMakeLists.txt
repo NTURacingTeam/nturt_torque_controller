@@ -29,7 +29,7 @@ add_executable(torque_controller_test
 )
 
 add_executable(${PROJECT_NAME}
-        app/torque_command_node.cpp
+        app/torque_command.cpp
 )
 
 target_link_libraries(torque_controller

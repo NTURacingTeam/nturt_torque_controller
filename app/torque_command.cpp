@@ -15,7 +15,6 @@ int main(int argc, char **argv) {
 
     // Main loop
     while (ros::ok()) {
-        // std::cout << "here" << std::endl;
         ros::spinOnce();
         loop_rate.sleep();
     }
