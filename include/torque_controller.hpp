@@ -1,9 +1,10 @@
 #ifndef TORQUE_CONTROLLER_HPP
 #define TORQUE_CONTROLLER_HPP
 
-// NTURT can id
-#include "cp_can_id.hpp"
-#include "NTURT_CAN_Parser.hpp"
+// STD include
+#include <bitset>
+#include <iostream>
+#include <memory>
 
 // ROS include
 #include <ros/ros.h>
@@ -12,9 +13,9 @@
 #include "can_msgs/Frame.h"
 #include "std_msgs/Bool.h"
 
-// STD include
-#include <bitset>
-#include <memory>
+// NTURT can id
+#include "cp_can_id.hpp"
+#include "NTURT_CAN_Parser.hpp"
 
 /// \brief Class for sending can signal to inverter
 class TorqueController {
@@ -24,8 +25,8 @@ class TorqueController {
         /// \brief Update function for publishing can data to inverter
         void update();
         
-        /// \brief Function for testing purposes
-        void test();
+        /// \brief Function for converting internal state to string
+        std::string get_string();
 
     private:
         /// \brief Callback function when receiving message form topic "sent_messages"
@@ -134,9 +135,6 @@ class TorqueController {
         // others
         /// \brief Maximum torque output [N * m]
         double torque_max_ = 100;
-
-        /// \brief Scale factor when converting pedal level to pedal travel
-        double pedal_level_to_travel_ = 1 / (254 - 1);
 };
 
 #endif // TORQUE_CONTROLLER_HPP
