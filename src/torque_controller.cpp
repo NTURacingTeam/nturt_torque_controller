@@ -29,11 +29,12 @@ void TorqueController::update() {
     // manually modify the data
     // motor direction to forward
     can_msg_.data[4] = 1;
+    // disable inverter when pedal plausibility check error
     if(appc_error_ || bppc_error_) {
-        can_msg_.data[5] = 1;
+        can_msg_.data[5] = 0;
     }
     else {
-        can_msg_.data[5] = 0;
+        can_msg_.data[5] = 1;
     }
     // publish it
     mcu_pub_.publish(can_msg_);

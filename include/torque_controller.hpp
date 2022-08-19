@@ -129,11 +129,11 @@ class TorqueController {
         double soft_start_threshold_ = 60;
 
         /// \brief Torque slope for soft start [N * m / s]
-        double soft_start_torque_slope_ = 13;
+        double soft_start_torque_slope_ = 10;
 
         // others
         /// \brief Maximum torque output [N * m]
-        double torque_max_ = 130;
+        double torque_max_ = 100;
 
         /// \brief Scale factor when converting pedal level to pedal travel
         double pedal_level_to_travel_ = 1 / (254 - 1);
