@@ -24,9 +24,14 @@ void TorqueController::update() {
 
     // construct can message
     can_msg_.header.stamp = ros::Time::now();
-    parser_.set_tbe("MTC", "N", torque_command);
-    parser_.encode(_CAN_MCM, can_msg_.data);
+    can_msg_.id = _CAN_MCM;
+
     // manually modify the data
+    // torque command
+    can_msg_.data[0] = (int)(torque_command * 10) % 256;
+    can_msg_.data[1] = (int)(torque_command * 10) / 256;
+    can_msg_.data[2] = 0;
+    can_msg_.data[3] = 0;
     // motor direction to forward
     can_msg_.data[4] = 1;
     // disable inverter when node is not activate or pedal plausibility check error
@@ -36,6 +41,8 @@ void TorqueController::update() {
     else {
         can_msg_.data[5] = 1;
     }
+    can_msg_.data[6] = 0;
+    can_msg_.data[7] = 0;
     // publish it
     mcu_pub_.publish(can_msg_);
 
