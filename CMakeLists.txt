@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.0.2)
-project(nturt_torque_cmd)
+project(nturt_torque_controller)
 set(CMAKE_CXX_STANDARD 11)
 
 find_package(catkin REQUIRED COMPONENTS
@@ -12,7 +12,7 @@ find_package(catkin REQUIRED COMPONENTS
 
 catkin_package(
         INCLUDE_DIRS include
-        LIBRARIES nturt_can_parser
+        LIBRARIES ${PROJECT_NAME}
         CATKIN_DEPENDS can_msgs nturt_can_parser roscpp rospy std_msgs
 )
 
@@ -28,8 +28,8 @@ add_executable(torque_controller_test
         test/torque_controller_test.cpp
 )
 
-add_executable(${PROJECT_NAME}
-        app/torque_command.cpp
+add_executable(${PROJECT_NAME}_node
+        app/torque_controller_node.cpp
 )
 
 target_link_libraries(torque_controller
@@ -42,7 +42,7 @@ target_link_libraries(torque_controller_test
         torque_controller
 )
 
-target_link_libraries(${PROJECT_NAME}
+target_link_libraries(${PROJECT_NAME}_node
         ${catkin_LIBRARIES}
         torque_controller
 )
