@@ -13,7 +13,7 @@ In addition, it implements soft start when rpm of the motor is low, which gradua
 The node may be run by
 
 ```bash=
-rosrun nturt_torque_controller torque_controller_node
+rosrun nturt_torque_controller nturt_torque_controller_node
 ```
 
 This node receive can message from `/received_messages` topic and send can message to `/sent_messages` that work with node `socketcan_bridge_node` from `socketcan_bridge` package.

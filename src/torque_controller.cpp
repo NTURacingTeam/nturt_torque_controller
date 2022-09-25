@@ -1,10 +1,11 @@
 #include "torque_controller.hpp"
 
 TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) : 
-                                   nh_(_nh), timestemp_last_(ros::Time::now().toSec()),
-                                   mcu_pub_(_nh->advertise<can_msgs::Frame>("sent_messages", 10)),
-                                   can_sub_(_nh->subscribe("received_messages", 10, &TorqueController::onCan, this)),
-                                   state_sub_(_nh->subscribe("node_state", 10, &TorqueController::onState, this)) {
+    nh_(_nh), timestemp_last_(ros::Time::now().toSec()),
+    can_pub_(_nh->advertise<can_msgs::Frame>("/sent_messages", 10)),
+    can_sub_(_nh->subscribe("/received_messages", 10, &TorqueController::onCan, this)),
+    state_sub_(_nh->subscribe("/node_state", 10, &TorqueController::onState, this)) {
+
     // initialize can parser
     parser_.init_parser();
     //initialize can data
@@ -14,17 +15,19 @@ TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) :
 
 void TorqueController::update() {
     double timestemp = ros::Time::now().toSec();
-    double time_period = timestemp - timestemp_last_;
+    double dt = timestemp - timestemp_last_;
     
     // get accelerator travel after checking pedal plausibility
-    double accelerator_travel = plausibility_check(time_period);
+    double accelerator_travel = plausibility_check(dt);
 
     // get torque command after considering soft start
-    double torque_command = soft_start(accelerator_travel, time_period);
+    double torque_command = soft_start(accelerator_travel, dt);
 
     // construct can message
     can_msg_.header.stamp = ros::Time::now();
-    can_msg_.id = _CAN_MCM;
+    // send to dasboard for now to avoid not able to send out
+    can_msg_.is_extended = 1;
+    can_msg_.id = 0x08a7d0;
 
     // manually modify the data
     // torque command
@@ -35,7 +38,7 @@ void TorqueController::update() {
     // motor direction to forward
     can_msg_.data[4] = 1;
     // disable inverter when node is not activate or pedal plausibility check error
-    if(!is_activated_ || appc_error_ || bppc_error_) {
+    if(!is_activated_ || apps_error_ || bse_error_ || bppc_error_) {
         can_msg_.data[5] = 0;
     }
     else {
@@ -44,26 +47,28 @@ void TorqueController::update() {
     can_msg_.data[6] = 0;
     can_msg_.data[7] = 0;
     // publish it
-    mcu_pub_.publish(can_msg_);
+    can_pub_.publish(can_msg_);
 
     timestemp_last_ = timestemp;
 }
 
 std::string TorqueController::get_string() {
-    return std::string("torque_controller_state:") +
-           std::string("\n\tmessage in:") +
-           std::string("\n\t\taccelerator_level_a: ") + std::to_string(accelerator_level_a_) +
-           std::string("\n\t\taccelerator_level_b: ") + std::to_string(accelerator_level_b_) +
-           std::string("\n\t\tbrake_level: ")+ std::to_string(brake_level_) +
-           std::string("\n\t\taccelerator_trigger: ") + std::string(accelerator_triger_ ? "true" : "false") +
-           std::string("\n\t\tbrake_trigger: ") + std::string(brake_trigger_ ? "true" : "false") +
-           std::string("\n\t\tmotor_speed: ") + std::to_string(motor_speed_) +
-           std::string("\n\t\tis_activated: ") + std::string(is_activated_ ? "true" : "false") +
-           std::string("\n\tinternal state:") +
-           std::string("\n\t\tappc_error: ") + std::string(appc_error_ ? "true" : "false") +
-           std::string("\n\t\tappc_duration: ") + std::to_string(appc_duration_) +
-           std::string("\n\t\tbppc_error: ") + std::string(bppc_error_ ? "true" : "false") +
-           std::string("\n\t\ttorque_command_last: ") + std::to_string(torque_command_last_) + '\n';
+    return std::string("torque_controller state:") +
+        "\n\tmessage in:" +
+        "\n\t\taccelerator_level_a: " + std::to_string(accelerator_level_a_) +
+        "\n\t\taccelerator_level_b: " + std::to_string(accelerator_level_b_) +
+        "\n\t\tbrake_level: "+ std::to_string(brake_level_) +
+        "\n\t\taccelerator_trigger: " + (accelerator_triger_ ? "true" : "false") +
+        "\n\t\tbrake_trigger: " + (brake_trigger_ ? "true" : "false") +
+        "\n\t\tmotor_speed: " + std::to_string(motor_speed_) +
+        "\n\t\tis_activated: " + (is_activated_ ? "true" : "false") +
+        "\n\tinternal state:" +
+        "\n\t\tapps_error: " + (apps_error_ ? "true" : "false") +
+        "\n\t\tapps_duration: " + std::to_string(apps_duration_) +
+        "\n\t\tbse_error: " + (bse_error_ ? "true" : "false") +
+        "\n\t\tbse_duration: " + std::to_string(bse_duration_) +
+        "\n\t\tbppc_error: " + (bppc_error_ ? "true" : "false") +
+        "\n\t\ttorque_command_last: " + std::to_string(torque_command_last_) + '\n';
 }
 
 void TorqueController::onCan(const can_msgs::Frame::ConstPtr &_msg) {
@@ -97,34 +102,59 @@ void TorqueController::onState(const std_msgs::Bool::ConstPtr &_msg) {
     is_activated_ = _msg->data;
 }
 
-double TorqueController::plausibility_check(double _time_period) {
-    double accelerator_travel_a = ((double)accelerator_level_a_ - 1.0) / 254;
-    double accelerator_travel_b = ((double)accelerator_level_b_ - 1.0) / 254;
+double TorqueController::plausibility_check(double _dt) {
+    double accelerator_travel_a = (double)(accelerator_level_a_ - 1) / 254.0;
+    double accelerator_travel_b = (double)(accelerator_level_b_ - 1) / 254.0;
 
     // use minium accelerator travel data
     double accelerator_travel = std::min(accelerator_travel_a, accelerator_travel_b);
 
-    // accelerator pedals plausibility check
+    // accelerator pedals position sensor
     // if a pedal malfunction or two accelerator travel disagree
-    if(std::abs(accelerator_level_a_ == 0 || accelerator_level_a_ == 255 ||
+    if(accelerator_level_a_ == 0 || accelerator_level_a_ == 255 ||
        accelerator_level_b_ == 0 || accelerator_level_b_ == 255 ||
-       accelerator_travel_a - accelerator_travel_b) > appc_travel_threshold_) {
-        // increase error duration
-        appc_duration_ += _time_period;
-        if(appc_duration_ > appc_duration_threshold_) {
-            // set appc_error state to true to disable inverter
-            appc_error_ = true;
+       std::abs(accelerator_travel_a - accelerator_travel_b) > apps_travel_threshold_) {
+        // not increment apps_duration when apps error is triggered
+        if(apps_duration_ > apps_duration_threshold_) {
+            // set apps_error state to true to disable inverter
+            apps_error_ = true;
             return 0;
         }
+        else {
+            apps_duration_ += _dt;
+        }
     }
-    else if(appc_duration_ > 0.01) {
-        // discount appc_duration if it is postive
-        appc_duration_ = std::max(0.0, appc_duration_ - appc_duration_discount_ * _time_period);
+    else if(apps_duration_ > 0.001) {
+        // discount apps_duration if it is postive
+        apps_duration_ = std::max(0.0, apps_duration_ - apps_duration_discount_ * _dt);
         return 0;
     }
     else {
-        // release accelerator pedal plausibility check error
-        appc_error_ = false;
+        // release accelerator pedal position sensor error
+        apps_error_ = false;
+    }
+
+    // brake system encoder
+    // if a pedal malfunction
+    if(brake_level_ == 0 || brake_level_ == 255) {
+        // not increment bse_duration when bse error is triggered
+        if(bse_duration_ > bse_duration_threshold_) {
+            // set bse_error state to true to disable inverter
+            bse_error_ = true;
+            return 0;
+        }
+        else {
+            bse_duration_ += _dt;
+        }
+    }
+    else if(bse_duration_ > 0.001) {
+        // discount bse_duration if it is postive
+        bse_duration_ = std::max(0.0, bse_duration_ - bse_duration_discount_ * _dt);
+        return 0;
+    }
+    else {
+        // release brake system encoder error
+        bse_error_ = false;
     }
 
     // brake pedal plausibility check
@@ -146,11 +176,11 @@ double TorqueController::plausibility_check(double _time_period) {
     return accelerator_travel;
 }
 
-double TorqueController::soft_start(double _accelerator_travel, double _time_period) {
+double TorqueController::soft_start(double _accelerator_travel, double _dt) {
     double torque_command = _accelerator_travel * torque_max_;
     // if trigger soft start
     if(motor_speed_ < soft_start_threshold_) {
-        double torque_command_threshold = std::min(torque_max_, torque_command_last_ + soft_start_torque_slope_ * _time_period);
+        double torque_command_threshold = std::min(torque_max_, torque_command_last_ + soft_start_torque_slope_ * _dt);
         if(torque_command > torque_command_threshold) {
             torque_command_last_ = torque_command_threshold;
             return torque_command_last_;

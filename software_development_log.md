@@ -2,7 +2,7 @@
 ###### tags: `development_log` `NTURT`
 ##### Group: electrical system group
 ##### Person in charge: 羅紀翔
-##### Authors: 羅易翔 黃柏瑞
+##### Authors: 羅紀翔 黃柏瑞
 ##### Subsystem: RPI
 ##### Subsystem number: RP4
 ##### Software name: torque_controller

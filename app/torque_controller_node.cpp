@@ -1,22 +1,22 @@
 #include "torque_controller.hpp"
 
 int main(int argc, char **argv) {
-    // Register as a ros node
+    // register as a ros node
     ros::init(argc, argv, "nturt_torque_cmd_node");
 
-    // Create a node handle
+    // create a node handle
     std::shared_ptr<ros::NodeHandle> nh = std::shared_ptr<ros::NodeHandle>(new ros::NodeHandle());
 
-    // Initialize torque controller
+    // initialize torque controller
     TorqueController torque_controller(nh);
 
-    // Frequancy 100 Hz
+    // frequancy 100 Hz
     ros::Rate loop_rate(100);
 
-    // Main loop
+    // main loop
     while (ros::ok()) {
-        torque_controller.update();
         ros::spinOnce();
+        torque_controller.update();
         loop_rate.sleep();
     }
 
