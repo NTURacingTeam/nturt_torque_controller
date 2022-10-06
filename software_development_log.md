@@ -27,6 +27,7 @@ TODO
 ## Testing environment:
 
 - ros noetic
+- docker virtual environment from [NTURacingTeam/docker](https://github.com/NTURacingTeam/docker) with image `ros_matlab`, `ros_rpi` based on ubuntu20.04
 
 ##### Testing hardware:
 
@@ -37,7 +38,6 @@ TODO
 
 - ubuntu 20.04
 - raspbian 32-bit
-- docker virtual environment from [NTURacingTeam/docker](https://github.com/NTURacingTeam/docker) with image `ros_matlab`, `ros_rpi` based on ubuntu20.04
 
 ##### Compiler(intepreter) version:
 
@@ -46,5 +46,7 @@ TODO
 ---
 
 ## Testing result of 1.0:
+
+still needs extensive testing with an inverter (or a fake one)
 
 ## Todos in 1.0:
