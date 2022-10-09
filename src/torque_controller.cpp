@@ -2,15 +2,36 @@
 
 TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) : 
     nh_(_nh), timestemp_last_(ros::Time::now().toSec()),
-    can_pub_(_nh->advertise<can_msgs::Frame>("/sent_messages", 10)),
-    can_sub_(_nh->subscribe("/received_messages", 10, &TorqueController::onCan, this)),
-    state_sub_(_nh->subscribe("/node_state", 10, &TorqueController::onState, this)) {
+    publish_frame_pub_(_nh->advertise<std_msgs::String>("/publish_can_frame", 10)),
+    update_data_pub_(_nh->advertise<nturt_ros_interface::UpdateCanData>("/update_can_data", 10)),
+    state_sub_(_nh->subscribe("/node_state", 10, &TorqueController::onState, this)),
+    get_data_clt_(_nh->serviceClient<nturt_ros_interface::GetCanData>("/get_can_data")),
+    register_clt_(_nh->serviceClient<nturt_ros_interface::RegisterCanNotification>("/register_can_notification")) {
 
-    // initialize can parser
-    parser_.init_parser();
-    //initialize can data
-    // can has data length of 8
-    can_msg_.dlc = 8;
+    // register to can parser
+    // construct register call
+    nturt_ros_interface::RegisterCanNotification register_srv;
+    register_srv.request.node_name = ros::this_node::getName();
+    
+    /*
+    data name registering to be notified
+    brake -> brake level (front box 2)
+    accelerator_1 -> accelerator level 1 (front box 2)
+    accelerator_2 -> accelerator level 2 (front box 2)
+    brake_micro -> brake trigger (front box 2)
+    accelerator_micro -> accelerator trigger (front box 2)
+    motor_speed -> motor speed (mcu_motor_speed)
+    */
+    register_srv.request.data_name = {"brake", "accelerator_1", "accelerator_2", "brake_micro", "accelerator_micro", "motor_speed"};
+    
+    // call service
+    if(!register_clt_.call(register_srv)) {
+        ROS_ERROR("register to can parser failed");
+        ros::shutdown();
+    }
+
+    // subscribe to the register topic
+    notification_sub_ = nh_->subscribe(register_srv.response.topic, 10, &TorqueController::onNotification, this);
 }
 
 void TorqueController::update() {
@@ -23,36 +44,27 @@ void TorqueController::update() {
     // get torque command after considering soft start
     double torque_command = soft_start(accelerator_travel, dt);
 
-    // construct can message
-    can_msg_.header.stamp = ros::Time::now();
-    // send to dasboard for now to avoid not able to send out
-    can_msg_.is_extended = 1;
-    can_msg_.id = 0x08a7d0;
-
-    // manually modify the data
-    // torque command
-    can_msg_.data[0] = (int)(torque_command * 10) % 256;
-    can_msg_.data[1] = (int)(torque_command * 10) / 256;
-    can_msg_.data[2] = 0;
-    can_msg_.data[3] = 0;
-    // motor direction to forward
-    can_msg_.data[4] = 1;
+    // update mcu command data
+    nturt_ros_interface::UpdateCanData update_msg;
+    // torque
+    update_msg.name = "torque_command";
+    update_msg.data = torque_command;
+    update_data_pub_.publish(update_msg);
+    // inverter enable
+    update_msg.name = "inverter_enable";
     // disable inverter when node is not activate or pedal plausibility check error
     if(!is_activated_ || apps_error_ || bse_error_ || bppc_error_) {
-        can_msg_.data[5] = 0;
+        update_msg.data = 0;
     }
     else {
-        can_msg_.data[5] = 1;
+        update_msg.data = 1;
     }
-    can_msg_.data[6] = 0;
-    can_msg_.data[7] = 0;
-    // publish it
-    can_pub_.publish(can_msg_);
+    update_data_pub_.publish(update_msg);
 
     timestemp_last_ = timestemp;
 }
 
-std::string TorqueController::get_string() {
+std::string TorqueController::get_string() const {
     return std::string("torque_controller state:") +
         "\n\tmessage in:" +
         "\n\t\taccelerator_level_a: " + std::to_string(accelerator_level_a_) +
@@ -68,33 +80,27 @@ std::string TorqueController::get_string() {
         "\n\t\tbse_error: " + (bse_error_ ? "true" : "false") +
         "\n\t\tbse_duration: " + std::to_string(bse_duration_) +
         "\n\t\tbppc_error: " + (bppc_error_ ? "true" : "false") +
-        "\n\t\ttorque_command_last: " + std::to_string(torque_command_last_) + '\n';
+        "\n\t\ttorque_command_last: " + std::to_string(torque_command_last_);
 }
 
-void TorqueController::onCan(const can_msgs::Frame::ConstPtr &_msg) {
-    // can signal from front box
-    if(_msg->id == _CAN_FB2) {
-        if(parser_.decode(_CAN_FB2, _msg->data) == OK) {
-            // accelerator level a
-            // accelerator_level_a_ = parser_.get_afd("THR", "A");
-            accelerator_level_a_ = _msg->data[1];
-            // accelerator level b
-            // accelerator_level_b_ = parser_.get_afd("THR", "B");
-            accelerator_level_b_ = _msg->data[2];
-            // brake level
-            // brake_level_ = _parser_.get_afd("BRK", "N");
-            brake_level_ = _msg->data[0];
-            // accelerator trigger
-            accelerator_triger_ = std::bitset<8>(_msg->data[7])[0];
-            // brake trigger
-            brake_trigger_ = std::bitset<8>(_msg->data[7])[1];
-        }
+void TorqueController::onNotification(const nturt_ros_interface::UpdateCanData::ConstPtr &_msg) {
+    if(_msg->name == "brake") {
+        brake_level_ = _msg->data;
     }
-    // can signal from inverter speed frame
-    else if(_msg->id == _CAN_MMS) {
-        if (parser_.decode(_CAN_MMS, _msg->data) == OK) {
-            motor_speed_ = parser_.get_afd("MMS", "N");
-        }
+    else if(_msg->name == "accelerator_1") {
+        accelerator_level_a_ = _msg->data;
+    }
+    else if(_msg->name == "accelerator_2") {
+        accelerator_level_b_ = _msg->data;
+    }
+    else if(_msg->name == "brake_micro") {
+        brake_trigger_ = _msg->data;
+    }
+    else if(_msg->name == "accelerator_micro") {
+        accelerator_triger_ = _msg->data;
+    }
+    else if(_msg->name == "motor_speed") {
+        motor_speed_ = _msg->data;
     }
 }
 

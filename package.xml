@@ -11,20 +11,18 @@
     <!-- build dependencies -->
     <buildtool_depend>catkin</buildtool_depend>
     <build_depend>can_msgs</build_depend>
-    <build_depend>nturt_can_parser</build_depend>
+    <build_depend>nturt_ros_interface</build_depend>
     <build_depend>roscpp</build_depend>
     <build_depend>rospy</build_depend>
     <build_depend>std_msgs</build_depend>
     <build_export_depend>can_msgs</build_export_depend>
-    <build_export_depend>nturt_can_parser</build_export_depend>
+    <build_export_depend>nturt_ros_interface</build_export_depend>
     <build_export_depend>roscpp</build_export_depend>
-    <build_export_depend>rospy</build_export_depend>
     <build_export_depend>std_msgs</build_export_depend>
 
     <!-- execute dependencies -->
     <exec_depend>can_msgs</exec_depend>
-    <exec_depend>nturt_can_parser</exec_depend>
+    <exec_depend>nturt_ros_interface</exec_depend>
     <exec_depend>roscpp</exec_depend>
-    <exec_depend>rospy</exec_depend>
     <exec_depend>std_msgs</exec_depend>
 </package>

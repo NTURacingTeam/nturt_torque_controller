@@ -1,6 +1,6 @@
 /**
  * @file torque_controller.hpp
- * @author quantumspawner jet22854111@gmail.com
+ * @author QuantumSpawner jet22854111@gmail.com
  * @brief ROS package for controlling motor torque output.
  */
 
@@ -8,24 +8,23 @@
 #define TORQUE_CONTROLLER_HPP
 
 // std include
-#include <bitset>
-#include <iostream>
 #include <memory>
+#include <string>
+#include <vector>
 
 // ros include
 #include <ros/ros.h>
-
-// ros message include
-#include "can_msgs/Frame.h"
 #include "std_msgs/Bool.h"
+#include "std_msgs/String.h"
 
 // nturt include
-#include "cp_can_id.hpp"
-#include "NTURT_CAN_Parser.hpp"
+#include "nturt_ros_interface/GetCanData.h"
+#include "nturt_ros_interface/RegisterCanNotification.h"
+#include "nturt_ros_interface/UpdateCanData.h"
 
 /**
- * @author quantumspawner jet22854111@gmail.com
- * @brief Class for sending can signal to inverter.
+ * @author QuantumSpawner jet22854111@gmail.com
+ * @brief Class for controlling inverter.
  */
 class TorqueController {
     public:
@@ -35,47 +34,29 @@ class TorqueController {
         void update();
         
         /// @brief Function for converting internal state to string.
-        std::string get_string();
+        std::string get_string() const;
 
     private:
-        /// @brief Callback function when receiving message form topic "/sent_messages".
-        void onCan(const can_msgs::Frame::ConstPtr &_msg);
-
-        /// @brief Callback function when receiving message from topic "/node_state".
-        void onState(const std_msgs::Bool::ConstPtr &_msg);
-
-        /**
-         * @brief Function for checking the plausibility (accelerator and brake) of padels.
-         * @param _dt Time dirrerence between this and last call of the function.
-         * @return Accelerator pedal travel (0 ~ 1) after checking the plausibility of padels.
-         */
-        double plausibility_check(double _dt);
-        
-        /**
-         * @brief Function for handling soft start of the motor.
-         * @param _accelerator_travel Travel of accelerator (0 ~ 1).
-         * @param _dt Time dirrerence between this and last call of the function.
-         * @return Torque command (0 ~ torque_max_).
-         */
-        double soft_start(double _accelerator_travel, double _dt);
-
         /// @brief Pointer to ros node handle.
         std::shared_ptr<ros::NodeHandle> nh_;
 
-        /// @brief Publisher to topic "/sent_messages".
-        ros::Publisher can_pub_;
+        /// @brief Publisher to "/publish_can_frame", for publishing can frames.
+        ros::Publisher publish_frame_pub_;
 
-        /// @brief Subscriber to topic "/received_messages".
-        ros::Subscriber can_sub_;
+        /// @brief Publisher to "/update_can_data", for updating can data.
+        ros::Publisher update_data_pub_;
 
-        /// @brief Subscriber to "/node_state".
+        /// @brief Subscriber to can data notification topic, for getting can data when they got updated.
+        ros::Subscriber notification_sub_;
+        
+        /// @brief Subscriber to "/node_state", for being controlled by nturt_state_controller.
         ros::Subscriber state_sub_;
 
-        /// @brief Can message to send to inverter.
-        can_msgs::Frame can_msg_;
+        /// @brief Service client to "/get_can_data", for getting can data (not used for now).
+        ros::ServiceClient get_data_clt_;
 
-        /// @brief CAN parser.
-        Parser parser_;
+        /// @brief Service client to "/register_can_notification", for registering to notification.
+        ros::ServiceClient register_clt_;
 
         // data input
         /// @brief Signal to activate this node controlled by topic "node_state".
@@ -160,6 +141,27 @@ class TorqueController {
         // others
         /// @brief Maximum torque output [N * m].
         double torque_max_ = 100;
+
+        /// @brief Callback function when receiving message form can data notification.
+        void onNotification(const nturt_ros_interface::UpdateCanData::ConstPtr &_msg);
+
+        /// @brief Callback function when receiving message from topic "/node_state".
+        void onState(const std_msgs::Bool::ConstPtr &_msg);
+
+        /**
+         * @brief Function for checking the plausibility (accelerator and brake) of padels.
+         * @param _dt Time dirrerence between this and last call of the function.
+         * @return Accelerator pedal travel (0 ~ 1) after checking the plausibility of padels.
+         */
+        double plausibility_check(double _dt);
+        
+        /**
+         * @brief Function for handling soft start of the motor.
+         * @param _accelerator_travel Travel of accelerator (0 ~ 1).
+         * @param _dt Time dirrerence between this and last call of the function.
+         * @return Torque command (0 ~ torque_max_).
+         */
+        double soft_start(double _accelerator_travel, double _dt);
 };
 
 #endif // TORQUE_CONTROLLER_HPP

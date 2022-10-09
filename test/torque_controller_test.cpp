@@ -3,8 +3,6 @@
 
 // ros include
 #include "ros/ros.h"
-
-// ros message include
 #include <can_msgs/Frame.h>
 #include "std_msgs/Bool.h"
 
