@@ -4,7 +4,7 @@
 ##### Person in charge: 羅紀翔
 ##### Authors: 羅紀翔 黃柏瑞
 ##### Subsystem: RPI
-##### Subsystem number: RP4
+##### Subsystem number: RP7
 ##### Software name: torque_controller
 ##### Repository: [github](https://github.com/NTURacingTeam/nturt_torque_controller.git)
 ##### Started designing date: 2022/3/20

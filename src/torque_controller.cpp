@@ -9,10 +9,14 @@ TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) :
     register_clt_(_nh->serviceClient<nturt_ros_interface::RegisterCanNotification>("/register_can_notification")) {
 
     // register to can parser
+    // wait until "/register_can_notification" service is avalible
+    if(!ros::service::waitForService("/register_can_notification", 10000)) {
+        ROS_FATAL("register to can parser timeout after 10 seconds");
+        ros::shutdown();
+    }
     // construct register call
     nturt_ros_interface::RegisterCanNotification register_srv;
     register_srv.request.node_name = ros::this_node::getName();
-    
     /*
     data name registering to be notified
     brake -> brake level (front box 2)
@@ -23,10 +27,9 @@ TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) :
     motor_speed -> motor speed (mcu_motor_speed)
     */
     register_srv.request.data_name = {"brake", "accelerator_1", "accelerator_2", "brake_micro", "accelerator_micro", "motor_speed"};
-    
     // call service
     if(!register_clt_.call(register_srv)) {
-        ROS_ERROR("register to can parser failed");
+        ROS_FATAL("register to can parser failed");
         ros::shutdown();
     }
 

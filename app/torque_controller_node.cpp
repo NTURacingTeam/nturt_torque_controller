@@ -2,7 +2,7 @@
 
 int main(int argc, char **argv) {
     // register as a ros node
-    ros::init(argc, argv, "nturt_torque_cmd_node");
+    ros::init(argc, argv, "nturt_torque_command_node");
 
     // create a node handle
     std::shared_ptr<ros::NodeHandle> nh = std::shared_ptr<ros::NodeHandle>(new ros::NodeHandle());
