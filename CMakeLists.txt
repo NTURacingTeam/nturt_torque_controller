@@ -19,28 +19,38 @@ include_directories(include
         ${catkin_INCLUDE_DIRS}
 )
 
-add_library(torque_controller
+# libraries
+# library: nturt_torque_controller
+add_library(${PROJECT_NAME}
         src/torque_controller.cpp
 )
 
-add_executable(torque_controller_test
-        test/torque_controller_test.cpp
+target_link_libraries(${PROJECT_NAME}
+        ${catkin_LIBRARIES}
 )
 
+# build this package after "nturt_ros_interface" has already finished generating
+add_dependencies(${PROJECT_NAME}
+        nturt_ros_interface_generate_messages_cpp)
+
+# application
+# executable: nturt_torque_controller_node
 add_executable(${PROJECT_NAME}_node
         app/torque_controller_node.cpp
 )
 
-target_link_libraries(torque_controller
-        ${catkin_LIBRARIES}
-)
-
-target_link_libraries(torque_controller_test
-        ${catkin_LIBRARIES}
-        torque_controller
-)
-
 target_link_libraries(${PROJECT_NAME}_node
         ${catkin_LIBRARIES}
-        torque_controller
+        ${PROJECT_NAME}
+)
+
+# tests
+# executable: nturt_torque_controller_test
+add_executable(${PROJECT_NAME}_test
+        test/torque_controller_test.cpp
+)
+
+target_link_libraries(${PROJECT_NAME}_test
+        ${catkin_LIBRARIES}
+        ${PROJECT_NAME}
 )
