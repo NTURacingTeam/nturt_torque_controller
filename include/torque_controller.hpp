@@ -1,7 +1,7 @@
 /**
  * @file torque_controller.hpp
- * @author QuantumSpawner jet22854111@gmail.com
  * @brief ROS package for controlling motor torque output.
+ * @author QuantumSpawner jet22854111@gmail.com
  */
 
 #ifndef TORQUE_CONTROLLER_HPP
@@ -23,8 +23,8 @@
 #include "nturt_ros_interface/UpdateCanData.h"
 
 /**
- * @author QuantumSpawner jet22854111@gmail.com
  * @brief Class for controlling inverter.
+ * @author QuantumSpawner jet22854111@gmail.com
  */
 class TorqueController {
     public:
