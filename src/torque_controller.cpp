@@ -20,13 +20,22 @@ TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) :
     /*
     data name registering to be notified
     brake -> brake level (front box 2)
+    gear_dial -> inverter mode (dashboard)
     accelerator_1 -> accelerator level 1 (front box 2)
     accelerator_2 -> accelerator level 2 (front box 2)
     brake_micro -> brake trigger (front box 2)
     accelerator_micro -> accelerator trigger (front box 2)
     motor_speed -> motor speed (mcu_motor_speed)
     */
-    register_srv.request.data_name = {"brake", "accelerator_1", "accelerator_2", "brake_micro", "accelerator_micro", "motor_speed"};
+    register_srv.request.data_name = {
+        "brake",
+        "gear_dial",
+        "accelerator_1",
+        "accelerator_2",
+        "brake_micro",
+        "accelerator_micro",
+        "motor_speed"
+    };
     // call service
     if(!register_clt_.call(register_srv)) {
         ROS_FATAL("register to can parser failed");
@@ -44,25 +53,28 @@ void TorqueController::update() {
     // get accelerator travel after checking pedal plausibility
     double accelerator_travel = plausibility_check(dt);
 
-    // get torque command after considering soft start
+    // get torque command after considering soft start and gear dial
     double torque_command = soft_start(accelerator_travel, dt);
 
     // update mcu command data
     nturt_ros_interface::UpdateCanData update_msg;
-    // torque
-    update_msg.name = "torque_command";
-    update_msg.data = torque_command;
-    update_data_pub_.publish(update_msg);
-    // inverter enable
+    // torque, inverter enable
     update_msg.name = "inverter_enable";
     // disable inverter when node is not activate or pedal plausibility check error
     if(!is_activated_ || apps_error_ || bse_error_ || bppc_error_) {
+        update_msg.name = "torque_command";
         update_msg.data = 0;
+        update_data_pub_.publish(update_msg);
+        update_msg.data = 0;
+        update_data_pub_.publish(update_msg);
     }
     else {
+        update_msg.name = "torque_command";
+        update_msg.data = torque_command;
+        update_data_pub_.publish(update_msg);
         update_msg.data = 1;
+        update_data_pub_.publish(update_msg);
     }
-    update_data_pub_.publish(update_msg);
 
     timestemp_last_ = timestemp;
 }
@@ -76,6 +88,7 @@ std::string TorqueController::get_string() const {
         "\n\t\taccelerator_trigger: " + (accelerator_triger_ ? "true" : "false") +
         "\n\t\tbrake_trigger: " + (brake_trigger_ ? "true" : "false") +
         "\n\t\tmotor_speed: " + std::to_string(motor_speed_) +
+        "\n\t\tgear_dial: " + std::to_string(gear_dial_) +
         "\n\t\tis_activated: " + (is_activated_ ? "true" : "false") +
         "\n\tinternal state:" +
         "\n\t\tapps_error: " + (apps_error_ ? "true" : "false") +
@@ -89,6 +102,9 @@ std::string TorqueController::get_string() const {
 void TorqueController::onNotification(const nturt_ros_interface::UpdateCanData::ConstPtr &_msg) {
     if(_msg->name == "brake") {
         brake_level_ = _msg->data;
+    }
+    else if(_msg->name == "gear_dial") {
+        gear_dial_ = _msg->data;
     }
     else if(_msg->name == "accelerator_1") {
         accelerator_level_a_ = _msg->data;
@@ -112,8 +128,8 @@ void TorqueController::onState(const std_msgs::Bool::ConstPtr &_msg) {
 }
 
 double TorqueController::plausibility_check(double _dt) {
-    double accelerator_travel_a = (double)(accelerator_level_a_ - 1) / 254.0;
-    double accelerator_travel_b = (double)(accelerator_level_b_ - 1) / 254.0;
+    double accelerator_travel_a = (accelerator_level_a_ - 1) / 254.0;
+    double accelerator_travel_b = (accelerator_level_b_ - 1) / 254.0;
 
     // use minium accelerator travel data
     double accelerator_travel = std::min(accelerator_travel_a, accelerator_travel_b);
@@ -186,7 +202,7 @@ double TorqueController::plausibility_check(double _dt) {
 }
 
 double TorqueController::soft_start(double _accelerator_travel, double _dt) {
-    double torque_command = _accelerator_travel * torque_max_;
+    double torque_command = _accelerator_travel * (gear_dial_ ? torque_max_slow_ : torque_max_);
     // if trigger soft start
     if(motor_speed_ < soft_start_threshold_) {
         double torque_command_threshold = std::min(torque_max_, torque_command_last_ + soft_start_torque_slope_ * _dt);

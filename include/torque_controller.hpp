@@ -1,7 +1,7 @@
 /**
  * @file torque_controller.hpp
- * @brief ROS package for controlling motor torque output.
  * @author QuantumSpawner jet22854111@gmail.com
+ * @brief ROS package for controlling motor torque output.
  */
 
 #ifndef TORQUE_CONTROLLER_HPP
@@ -23,8 +23,8 @@
 #include "nturt_ros_interface/UpdateCanData.h"
 
 /**
- * @brief Class for controlling inverter.
  * @author QuantumSpawner jet22854111@gmail.com
+ * @brief Class for controlling inverter.
  */
 class TorqueController {
     public:
@@ -62,6 +62,9 @@ class TorqueController {
         /// @brief Signal to activate this node controlled by topic "node_state".
         bool is_activated_ = false;
 
+        /// @brief Gear dial of inverter mode.
+        int gear_dial_ = 0;
+
         /// @brief Accelerator pedal level a.
         double accelerator_level_a_ = 0;
 
@@ -77,11 +80,11 @@ class TorqueController {
         /// @brief Brake pedal trigger.
         bool brake_trigger_ = false;
 
-        /// @brief Motor spped [rpm].
+        /// @brief Motor spped \f$[rpm]\f$.
         double motor_speed_ = 0;
 
         // internal control parameters
-        /// @brief Last timestemp when "update" function is called [s].
+        /// @brief Last timestemp when "update" function is called \f$[s]\f$.
         double timestemp_last_;
 
         // accelerator pedal position sensor (apps)
@@ -103,7 +106,7 @@ class TorqueController {
         bool bppc_error_ = false;
 
         // soft start
-        /// @brief Last torque command when "update" is called [N * m].
+        /// @brief Last torque command when "update" is called \f$[N\cdot m]\f$.
         double torque_command_last_ = 0;
 
         // parameters of the node
@@ -111,14 +114,14 @@ class TorqueController {
         /// @brief Difference threshold of the accelerator pedal travel, when higher, trigger accelerator pedal position sensor error.
         double apps_travel_threshold_ = 0.1;
 
-        /// @brief Time threshold before triggering accelerator pedal position sensor error [s].
+        /// @brief Time threshold before triggering accelerator pedal position sensor error \f$[s]\f$.
         double apps_duration_threshold_ = 0.1;
 
         /// @brief Error duraion discount factor when accelerator pedal position sensor signals are pausible.
         double apps_duration_discount_ = 0.1;
 
         // brake system encoder (bse)
-        /// @brief Time threshold before triggering brake system encoder error [s].
+        /// @brief Time threshold before triggering brake system encoder error \f$[s]\f$.
         double bse_duration_threshold_ = 0.1;
 
         /// @brief Error duraion discount factor when brake system encoder signal is pausible.
@@ -132,15 +135,18 @@ class TorqueController {
         double bppc_release_threshold_ = 0.05;
 
         // soft start when motor speed is low
-        /// @brief Threshold for motor spped when lower, trigger soft start [rpm].
+        /// @brief Threshold for motor spped when lower, trigger soft start \f$[rpm]\f$.
         double soft_start_threshold_ = 60;
 
-        /// @brief Torque slope for soft start [N * m / s].
+        /// @brief Torque slope for soft start \f$[N\cdot m \cdot s^{-1}]\f$.
         double soft_start_torque_slope_ = 10;
 
         // others
-        /// @brief Maximum torque output [N * m].
-        double torque_max_ = 100;
+        /// @brief Maximum torque output if gear_dail=0 \f$[N\cdot m]\f$.
+        double torque_max_ = 134;
+
+        /// @brief Maximum torque output if gear_dail=1 \f$[N\cdot m]\f$.
+        double torque_max_slow_ = 80;
 
         /// @brief Callback function when receiving message form can data notification.
         void onNotification(const nturt_ros_interface::UpdateCanData::ConstPtr &_msg);
@@ -156,7 +162,7 @@ class TorqueController {
         double plausibility_check(double _dt);
         
         /**
-         * @brief Function for handling soft start of the motor.
+         * @brief Function for handling soft start and gear dial of the motor.
          * @param _accelerator_travel Travel of accelerator (0 ~ 1).
          * @param _dt Time dirrerence between this and last call of the function.
          * @return Torque command (0 ~ torque_max_).
