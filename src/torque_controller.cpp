@@ -58,13 +58,16 @@ void TorqueController::update() {
 
     // update mcu command data
     nturt_ros_interface::UpdateCanData update_msg;
-    // torque, inverter enable
-    update_msg.name = "inverter_enable";
+    // torque, direction command, inverter enable
     // disable inverter when node is not activate or pedal plausibility check error
     if(!is_activated_ || apps_error_ || bse_error_ || bppc_error_) {
         update_msg.name = "torque_command";
         update_msg.data = 0;
         update_data_pub_.publish(update_msg);
+        update_msg.name = "direction_command";
+        update_msg.data = 0;
+        update_data_pub_.publish(update_msg);
+        update_msg.name = "inverter_enable";
         update_msg.data = 0;
         update_data_pub_.publish(update_msg);
     }
@@ -72,6 +75,10 @@ void TorqueController::update() {
         update_msg.name = "torque_command";
         update_msg.data = torque_command;
         update_data_pub_.publish(update_msg);
+        update_msg.name = "direction_command";
+        update_msg.data = 1;
+        update_data_pub_.publish(update_msg);
+        update_msg.name = "inverter_enable";
         update_msg.data = 1;
         update_data_pub_.publish(update_msg);
     }
