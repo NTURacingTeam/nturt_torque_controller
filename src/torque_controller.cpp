@@ -2,6 +2,7 @@
 
 TorqueController::TorqueController(std::shared_ptr<ros::NodeHandle> &_nh) : 
     nh_(_nh), timestemp_last_(ros::Time::now().toSec()),
+    controller_data_pub_(_nh->advertise<nturt_ros_interface::TorqueControllerData>("/torque_controller_data", 10)), 
     publish_frame_pub_(_nh->advertise<std_msgs::String>("/publish_can_frame", 10)),
     update_data_pub_(_nh->advertise<nturt_ros_interface::UpdateCanData>("/update_can_data", 10)),
     state_sub_(_nh->subscribe("/node_state", 10, &TorqueController::onState, this)),
@@ -57,31 +58,51 @@ void TorqueController::update() {
     double torque_command = soft_start(accelerator_travel, dt);
 
     // update mcu command data
+    // update to push_to_control_tower
+    nturt_ros_interface::TorqueControllerData controller_data;
+    controller_data.is_activated = is_activated_;
+    controller_data.apps_error = apps_error_;
+    controller_data.bse_error = bse_error_;
+    controller_data.bppc_error = bppc_error_;
+
+    // update to can_parser
     nturt_ros_interface::UpdateCanData update_msg;
     // torque, direction command, inverter enable
     // disable inverter when node is not activate or pedal plausibility check error
     if(!is_activated_ || apps_error_ || bse_error_ || bppc_error_) {
+        controller_data.torque_command = 0;
         update_msg.name = "torque_command";
         update_msg.data = 0;
         update_data_pub_.publish(update_msg);
+
+        controller_data.direction_command = false;
         update_msg.name = "direction_command";
         update_msg.data = 0;
         update_data_pub_.publish(update_msg);
+
+        controller_data.inverter_enable = false;
         update_msg.name = "inverter_enable";
         update_msg.data = 0;
         update_data_pub_.publish(update_msg);
     }
     else {
+        controller_data.torque_command = torque_command;
         update_msg.name = "torque_command";
         update_msg.data = torque_command;
         update_data_pub_.publish(update_msg);
+
+        controller_data.direction_command = true;
         update_msg.name = "direction_command";
         update_msg.data = 1;
         update_data_pub_.publish(update_msg);
+
+        controller_data.inverter_enable = true;
         update_msg.name = "inverter_enable";
         update_msg.data = 1;
         update_data_pub_.publish(update_msg);
     }
+
+    controller_data_pub_.publish(controller_data);
 
     timestemp_last_ = timestemp;
 }

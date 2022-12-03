@@ -20,6 +20,7 @@
 // nturt include
 #include "nturt_ros_interface/GetCanData.h"
 #include "nturt_ros_interface/RegisterCanNotification.h"
+#include "nturt_ros_interface/TorqueControllerData.h"
 #include "nturt_ros_interface/UpdateCanData.h"
 
 /**
@@ -39,6 +40,9 @@ class TorqueController {
     private:
         /// @brief Pointer to ros node handle.
         std::shared_ptr<ros::NodeHandle> nh_;
+        
+        /// @brief Publisher to "/torque_controller_data", for publishing the internal data of the torque_controller.
+        ros::Publisher controller_data_pub_;
 
         /// @brief Publisher to "/publish_can_frame", for publishing can frames.
         ros::Publisher publish_frame_pub_;
