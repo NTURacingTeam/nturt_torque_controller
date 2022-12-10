@@ -233,7 +233,7 @@ double TorqueController::soft_start(double _accelerator_travel, double _dt) {
     double torque_command = _accelerator_travel * (gear_dial_ ? torque_max_slow_ : torque_max_);
     // if trigger soft start
     if(motor_speed_ < soft_start_threshold_) {
-        double torque_command_threshold = std::min(torque_max_, torque_command_last_ + soft_start_torque_slope_ * _dt);
+        double torque_command_threshold = std::min(torque_max_, std::max(soft_start_starting_point_, torque_command_last_) + soft_start_torque_slope_ * _dt);
         if(torque_command > torque_command_threshold) {
             torque_command_last_ = torque_command_threshold;
             return torque_command_last_;

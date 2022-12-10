@@ -145,6 +145,9 @@ class TorqueController {
         /// @brief Torque slope for soft start \f$[N\cdot m \cdot s^{-1}]\f$.
         double soft_start_torque_slope_ = 10;
 
+        /// @brief Torque output starting point when triggering soft start \f$[N\cdot m]\f$.
+        double soft_start_starting_point_ = 5;
+
         // others
         /// @brief Maximum torque output if gear_dail=0 \f$[N\cdot m]\f$.
         double torque_max_ = 134;
