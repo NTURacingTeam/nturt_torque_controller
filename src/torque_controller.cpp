@@ -93,7 +93,7 @@ void TorqueController::update() {
 
         controller_data.direction_command = true;
         update_msg.name = "direction_command";
-        update_msg.data = 1;
+        update_msg.data = 0;
         update_data_pub_.publish(update_msg);
 
         controller_data.inverter_enable = true;
